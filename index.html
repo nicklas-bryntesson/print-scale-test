@@ -223,6 +223,23 @@ function attachScaleObserver() {
 
   // Also listen for window resize (for edge cases)
   window.addEventListener("resize", updateScale);
+  
+  // Handle mobile orientation changes
+  if (screen.orientation) {
+    // Modern orientation API
+    screen.orientation.addEventListener("change", () => {
+      console.log("Orientation changed to:", screen.orientation.angle);
+      // Small delay to ensure layout has updated
+      setTimeout(updateScale, 100);
+    });
+  } else {
+    // Fallback for older browsers
+    window.addEventListener("orientationchange", () => {
+      console.log("Orientation change (fallback)");
+      // Small delay to ensure layout has updated
+      setTimeout(updateScale, 100);
+    });
+  }
 
   // Run initial calculation
   updateScale();
@@ -231,6 +248,11 @@ function attachScaleObserver() {
   return () => {
     observer.disconnect();
     window.removeEventListener("resize", updateScale);
+    if (screen.orientation) {
+      screen.orientation.removeEventListener("change", updateScale);
+    } else {
+      window.removeEventListener("orientationchange", updateScale);
+    }
     if (resizeTimeout) {
       clearTimeout(resizeTimeout);
     }
