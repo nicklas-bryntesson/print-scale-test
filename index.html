@@ -1,0 +1,250 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scale test</title>
+</head>
+<body>
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+        }
+
+        #root,
+        #__next {
+            isolation: isolate;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            height: 2000px;
+            min-height: 100dwh;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .dialog {
+            --_inset: 1rem;
+            --_padding: 0;
+
+            position: fixed;
+            display: flex;
+            flex-direction: column;
+            inset: var(--_inset);
+            width: calc(100% - 2 * var(--_inset));
+            max-width: 50rem;
+            height: auto;
+            max-height: calc(100% - (var(--_inset) + 2 * var(--_padding)));
+            margin-inline: auto;
+            padding: var(--_padding);
+            overflow: scroll;
+            background-color: lime;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            width: 100%;
+            background-color: pink;
+            padding: 1rem;
+        }
+
+        .content {
+            position: relative;
+            margin-inline: auto;
+            aspect-ratio: 210/297;
+            width: 100%;
+            height: auto;
+            display: flex;
+            flex-direction: column;
+            background-color: hotpink;
+        }
+
+         /* we should measure this */
+         .scale-container {
+             --_scale: 1;
+ 
+             position: relative;
+             display: flex;
+             flex-direction: column;
+             margin-inline: auto;
+             background-color: aqua;
+
+            /* and scale this accordingly */
+            & .print-container {
+                transform-origin: 0 0;
+                transform: scale(var(--_scale));
+                background-color: rebeccapurple;
+                aspect-ratio: 210/297;
+                margin-inline: auto;
+            }
+        }
+
+        /* This is the actual message that is in print size - we shouldn't touch this */
+        .message-preview-page {
+            position: relative;
+            width: 210mm;
+            height: 297mm;
+            background-color: lightgoldenrodyellow;
+
+            & .border-title {
+                position: absolute;
+                top: 18mm;
+                left: 90mm;
+                width: 30mm;
+                font-size: 8pt;
+                text-align: center;
+                background-color: lightsalmon;
+            }
+
+            & .image {
+                position: absolute;
+                top: 25mm;
+                left: 15mm;
+                width: 180mm;
+                height: 120mm;
+
+                > img {
+                    width: 180mm;
+                    height: 120mm;
+                }
+            }
+
+            & .text-message {
+                position: absolute;
+                top: 150mm;
+                left: 15mm;
+                width: 180mm;
+                height: 80mm;
+                text-align: center;
+                background-color: lightsteelblue;
+            }
+        }
+
+    </style>
+    <div class="dialog">
+        <div class="topbar">
+          Förhandsgranska
+          <button class="">
+            Close
+          </button>
+        </div>
+      
+        <div class="content">
+        
+            <div class="scale-container">
+
+                <div class="print-container">
+            
+                  <div class="message-preview-page">
+                    <div class="border-title">Minnesgåva</div>
+            
+                    <div class="image absolute">
+                      <img loading="lazy" src="https://picsum.photos/seed/picsum/200/300" width="1886" height="1320" alt="Värmeljus med röda blommor runtom">
+                    </div>
+            
+                    <div class="text-message">
+                      <h1 class="uppercase scriften">TILL MINNE AV</h1>
+                      <p class="names">sfdfad ads</p>
+                      <p class="pre-message">har en gåva skänkts till Läkare Utan Gränser</p>
+                      <div class="message">
+                        <p>asdafdgsfd</p>
+                      </div>
+                    </div>
+                  </div>
+            
+                </div>
+            </div>
+        </div>
+      </div>
+
+    <script>
+function attachScaleObserver() {
+  const observedElement = document.querySelector(".content"); // Watch the content area
+  const scaleContainer = document.querySelector(".scale-container"); // The container we apply scale to
+  const page = document.querySelector(".message-preview-page"); // For reference
+  
+  if (!observedElement || !scaleContainer || !page) {
+    console.warn("Could not find required elements");
+    return;
+  }
+
+  // Convert mm to px (96 DPI standard)
+  const MM_TO_PX = 96 / 25.4; // More accurate conversion
+  const pageWidthPx = 210 * MM_TO_PX;
+  const pageHeightPx = 297 * MM_TO_PX;
+
+  let resizeTimeout;
+
+  const updateScale = () => {
+    // Clear any pending updates
+    if (resizeTimeout) {
+      clearTimeout(resizeTimeout);
+    }
+
+    // Debounce for performance
+    resizeTimeout = setTimeout(() => {
+      const contentRect = observedElement.getBoundingClientRect();
+      
+      // Set scale-container to proper aspect ratio based on content width (no feedback loop!)
+      const aspectRatio = 210 / 297; // Our target aspect ratio
+      const containerWidth = contentRect.width;
+      const containerHeight = containerWidth / aspectRatio; // Calculate height to maintain aspect ratio
+      
+      scaleContainer.style.width = `${containerWidth}px`;
+      scaleContainer.style.height = `${containerHeight}px`;
+      
+      // Calculate scale to fit both dimensions proportionally (use full container dimensions)
+      const scaleW = containerWidth / pageWidthPx;
+      const scaleH = containerHeight / pageHeightPx;
+      
+      // Use the smaller scale, allow up to 1:1 (no artificial safety margin)
+      const scale = Math.min(scaleW, scaleH, 1); // Never scale larger than 1:1
+      
+      // Apply visual scaling to the print-container
+      scaleContainer.style.setProperty("--_scale", scale.toString());
+      
+      const actualAspectRatio = containerWidth / containerHeight;
+      console.log(`Content: ${contentRect.width.toFixed(1)}x${contentRect.height.toFixed(1)}px, Container: ${containerWidth.toFixed(1)}x${containerHeight.toFixed(1)}px, Aspect: ${actualAspectRatio.toFixed(4)} (target: ${aspectRatio.toFixed(4)}), Scale: ${scale.toFixed(4)}`);
+    }, 16); // ~60fps throttling
+  };
+
+  // Create ResizeObserver to watch container size changes
+  const observer = new ResizeObserver((entries) => {
+    console.log('ResizeObserver triggered:', entries[0]?.contentRect);
+    updateScale();
+  });
+  
+  observer.observe(observedElement);
+
+  // Also listen for window resize (for edge cases)
+  window.addEventListener("resize", updateScale);
+
+  // Run initial calculation
+  updateScale();
+
+  // Return cleanup function if needed
+  return () => {
+    observer.disconnect();
+    window.removeEventListener("resize", updateScale);
+    if (resizeTimeout) {
+      clearTimeout(resizeTimeout);
+    }
+  };
+}
+
+// Initialize when DOM is ready
+if (document.readyState === "loading") {
+  window.addEventListener("DOMContentLoaded", attachScaleObserver);
+} else {
+  // DOM already loaded
+  attachScaleObserver();
+}
+
+    </script>
+</body>
+</html>
